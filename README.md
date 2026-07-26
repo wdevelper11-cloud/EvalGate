@@ -21,6 +21,9 @@ EvalGate gives AI product teams a focused workflow to:
 
 The MVP uses deterministic rule-based evaluation, so it requires no paid AI API.
 
+Phase 6 provides Supabase-backed test case creation, listing, and archiving. Expected and forbidden
+keywords are normalized from comma-separated form values and stored as PostgreSQL text arrays.
+
 ## Features
 
 - [ ] Supabase email/password authentication
