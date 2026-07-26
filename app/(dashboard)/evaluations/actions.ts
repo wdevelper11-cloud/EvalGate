@@ -1,0 +1,122 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { ensureDefaultProject } from "@/lib/evalgate/default-project";
+import type { SimulatedEvaluationResult } from "@/lib/evalgate/evaluations";
+import type { PromptVersion } from "@/lib/evalgate/prompt-versions";
+import type { TestCase } from "@/lib/evalgate/test-cases";
+import { createClient } from "@/lib/supabase/server";
+
+type PromptSelection = Pick<PromptVersion, "id" | "name" | "version_label">;
+type TestSelection = Pick<TestCase, "id" | "name" | "expected_keywords" | "forbidden_keywords" | "status">;
+
+function formText(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function redirectWithError(message: string): never {
+  redirect(`/evaluations?error=${encodeURIComponent(message)}`);
+}
+
+function simulateResult(runId: string, prompt: PromptSelection, testCase: TestSelection): SimulatedEvaluationResult {
+  const response = `Simulated response for "${testCase.name}" using prompt "${prompt.version_label}". This MVP does not call a real AI provider.`;
+  const normalizedResponse = response.toLocaleLowerCase();
+  const forbiddenFound = testCase.forbidden_keywords.some((keyword) =>
+    keyword.trim() !== "" && normalizedResponse.includes(keyword.trim().toLocaleLowerCase()),
+  );
+  const totalScore = forbiddenFound ? 60 : 100;
+  const passed = totalScore >= 70 && !forbiddenFound;
+
+  return {
+    eval_run_id: runId,
+    test_case_id: testCase.id,
+    response_output: response,
+    quality_score: testCase.expected_keywords.length > 0 ? 80 : 100,
+    safety_score: forbiddenFound ? 0 : 100,
+    format_score: 90,
+    latency_score: 100,
+    cost_score: 100,
+    total_score: totalScore,
+    latency_ms: 120,
+    estimated_cost: 0,
+    passed,
+    failure_reason: forbiddenFound ? "Simulated response contained a configured forbidden keyword." : null,
+    forbidden_found: forbiddenFound,
+  };
+}
+
+export async function runEvaluation(formData: FormData) {
+  const promptVersionId = formText(formData, "prompt_version_id");
+  const testCaseIds = Array.from(new Set(formData.getAll("test_case_ids").filter(
+    (value): value is string => typeof value === "string" && value.trim() !== "",
+  )));
+
+  if (!promptVersionId) redirectWithError("Select a prompt version.");
+  if (testCaseIds.length === 0) redirectWithError("Select at least one active test case.");
+
+  const workspace = await ensureDefaultProject();
+  if (!workspace.ok) redirectWithError("Workspace setup is unavailable. Please try again.");
+
+  const supabase = createClient();
+  const [{ data: promptData, error: promptError }, { data: testData, error: testError }] = await Promise.all([
+    supabase.from("prompt_versions").select("id, name, version_label").eq("id", promptVersionId).eq("project_id", workspace.project.id).maybeSingle(),
+    supabase.from("test_cases").select("id, name, expected_keywords, forbidden_keywords, status").eq("project_id", workspace.project.id).eq("status", "active").in("id", testCaseIds),
+  ]);
+
+  const prompt = promptData as PromptSelection | null;
+  const testCases = (testData ?? []) as TestSelection[];
+  if (promptError || !prompt) redirectWithError("The selected prompt version is unavailable.");
+  if (testError || testCases.length !== testCaseIds.length) {
+    redirectWithError("One or more selected test cases are unavailable or inactive.");
+  }
+
+  const runName = formText(formData, "name") || null;
+  const { data: runData, error: runError } = await supabase
+    .from("eval_runs")
+    .insert({
+      project_id: workspace.project.id,
+      prompt_version_id: prompt.id,
+      name: runName,
+      status: "running",
+      total_tests: testCases.length,
+    })
+    .select("id")
+    .single();
+
+  if (runError || !runData) redirectWithError("Could not start the evaluation run. Please try again.");
+  const run = runData as { id: string };
+  const results = testCases.map((testCase) => simulateResult(run.id, prompt, testCase));
+
+  const { error: resultsError } = await supabase.from("eval_results").insert(results);
+  if (resultsError) {
+    await supabase.from("eval_runs").update({ status: "failed", completed_at: new Date().toISOString() }).eq("id", run.id).eq("project_id", workspace.project.id);
+    redirectWithError("Could not save all evaluation results. The run was marked as failed.");
+  }
+
+  const passedTests = results.filter((result) => result.passed).length;
+  const safetyFailures = results.filter((result) => result.forbidden_found).length;
+  const averageScore = Number((results.reduce((sum, result) => sum + result.total_score, 0) / results.length).toFixed(2));
+  const { error: completionError } = await supabase
+    .from("eval_runs")
+    .update({
+      status: "completed",
+      total_tests: results.length,
+      passed_tests: passedTests,
+      failed_tests: results.length - passedTests,
+      average_score: averageScore,
+      safety_failures: safetyFailures,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", run.id)
+    .eq("project_id", workspace.project.id);
+
+  if (completionError) {
+    await supabase.from("eval_runs").update({ status: "failed", completed_at: new Date().toISOString() }).eq("id", run.id).eq("project_id", workspace.project.id);
+    redirectWithError("Results were saved, but the evaluation run could not be completed.");
+  }
+
+  revalidatePath("/evaluations");
+  redirect("/evaluations");
+}

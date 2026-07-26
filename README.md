@@ -27,6 +27,9 @@ keywords are normalized from comma-separated form values and stored as PostgreSQ
 Phase 7 provides Supabase-backed prompt version creation, listing, activation, and archiving within
 the authenticated default project. `simulated-model` is the default model context; no real AI API is called.
 
+Phase 8 persists deterministic simulated evaluations as Supabase `eval_runs` and `eval_results`
+records. Real provider calls, final scoring, and release decisions remain intentionally deferred.
+
 ## Features
 
 - [ ] Supabase email/password authentication
