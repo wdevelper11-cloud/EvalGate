@@ -179,7 +179,7 @@ The helper function uses `security definer` only to perform a narrow ownership l
 
 Save the following as the Phase 3 baseline patch, for example:
 
-`supabase/patches/20260726_001_initial_schema.sql`
+`supabase-patches/001_initial_schema.sql`
 
 Run it in the Supabase Cloud SQL Editor. Do not require the Supabase CLI.
 
@@ -717,8 +717,8 @@ The real RLS test must use two application accounts:
 2. Create a new ordered file for every later database change:
 
 ```text
-supabase/patches/
-  20260726_001_initial_schema.sql
+supabase-patches/
+  001_initial_schema.sql
   20260726_002_demo_seed.sql
   20260727_003_example_change.sql
 ```

@@ -12,7 +12,7 @@ Complete phases in order. Do not begin the next phase until:
 
 For any database change:
 
-- Create a new ordered file under `supabase/patches/`.
+- Create a new ordered file under `supabase-patches/`.
 - Apply it manually through the Supabase Cloud SQL Editor.
 - Record the filename and verification result.
 - Never require local Supabase or the Supabase CLI.
@@ -204,7 +204,7 @@ Create the seven tables, constraints, indexes, triggers, default-project provisi
 
 ### Files likely touched
 
-- `supabase/patches/20260726_001_initial_schema.sql`
+- `supabase-patches/001_initial_schema.sql`
 - `types/database.ts`
 - `docs/03_DATABASE_SCHEMA.md` only if implementation discoveries require a new documented decision
 - `.env.example`
@@ -740,7 +740,7 @@ Turn the working MVP into a coherent, resume-ready demonstration without changin
 - Visual components across modules
 - `README.md`
 - `docs/05_RESUME_NOTES.md`
-- Optional `supabase/patches/20260726_002_demo_support.sql` only if a database correction is truly required
+- Optional `supabase-patches/002_demo_support.sql` only if a database correction is truly required
 
 ### Tasks
 
