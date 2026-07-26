@@ -2,7 +2,7 @@
 
 **AI Agent Evaluation & Release Readiness Harness**
 
-> This README is the implementation contract for the resume-ready MVP. Feature checkboxes should be updated only after each phase is verified.
+> EvalGate is a completed, internship-ready engineering MVP. Its evaluator is deterministic and makes no paid AI API calls.
 
 ## Problem
 
@@ -10,78 +10,31 @@ Prompt and agent changes can silently reduce output quality, introduce unsafe co
 
 ## Solution
 
-EvalGate gives AI product teams a focused workflow to:
-
-1. Register reusable evaluation test cases.
-2. Store versioned prompts.
-3. Run selected tests with simulated or manually entered responses.
-4. Score quality, safety, format, latency, and cost.
-5. Produce an explainable **Ship**, **Needs Review**, or **Block** decision.
-6. Review persisted results, metrics, reports, and recent activity.
-
-The MVP uses deterministic rule-based evaluation, so it requires no paid AI API.
-
-Phase 6 provides Supabase-backed test case creation, listing, and archiving. Expected and forbidden
-keywords are normalized from comma-separated form values and stored as PostgreSQL text arrays.
-
-Phase 7 provides Supabase-backed prompt version creation, listing, activation, and archiving within
-the authenticated default project. `simulated-model` is the default model context; no real AI API is called.
-
-Phase 8 persists deterministic simulated evaluations as Supabase `eval_runs` and `eval_results`
-records. Real provider calls, final scoring, and release decisions remain intentionally deferred.
-
-Phase 9 scores results deterministically using expected-keyword coverage, forbidden-keyword safety
-checks, category-aware weights, and priority-based pass thresholds. No real AI API is used, and
-run-level release decisions remain deferred.
-
-Phase 10 persists `ship`, `needs_review`, or `block` in `release_decisions`. Safety failures and
-averages below 70 block release, partial failures or averages below 85 need review, and fully
-passing high-scoring runs can ship. Real AI provider calls remain out of scope.
-
-For deterministic review-path testing, a test input containing `simulate incomplete answer` makes
-the simulator omit configured expected keywords without intentionally adding forbidden content.
-
-Phase 11 adds live dashboard metrics, release-readiness reports, and an audit timeline derived from
-existing records rather than a separate audit table. Every view is scoped to the authenticated
-project through RLS, and no real AI provider calls are used.
+EvalGate gives AI product teams a focused workflow to register evaluation test cases and prompt versions, run deterministic simulated evaluations, inspect persisted per-test scores, and produce explainable **Ship**, **Needs Review**, or **Block** decisions. Live dashboard metrics, reports, and an IST-formatted audit timeline are derived from project-scoped Supabase records.
 
 ## Features
 
-- [ ] Supabase email/password authentication
-- [ ] Protected Next.js application routes
-- [ ] Automatic default project per user
-- [ ] Scenario-based test case registry
-- [ ] Prompt version registry
-- [ ] Deterministic response simulation and manual response entry
-- [ ] Quality keyword scoring
-- [ ] Forbidden-keyword safety checks
-- [ ] JSON format validation
-- [ ] Latency threshold scoring
-- [ ] Estimated-cost threshold scoring
-- [ ] Weighted total score
-- [ ] Ship, Needs Review, and Block release gates
-- [ ] Persisted runs and per-test results
-- [ ] Live dashboard metrics
-- [ ] Evaluation reports
-- [ ] Derived audit timeline
-- [ ] Supabase RLS isolation
-- [ ] Vercel deployment
+- [x] Supabase email/password authentication and protected application routes
+- [x] Automatic default project per user
+- [x] Scenario-based test case registry and prompt version registry
+- [x] Deterministic simulated evaluation runs
+- [x] Quality, safety, format, latency, and estimated-cost scoring
+- [x] Priority-aware per-test pass thresholds
+- [x] Ship, Needs Review, and Block release gates
+- [x] Persisted runs, per-test results, reports, and derived audit timeline
+- [x] Live dashboard metrics
+- [x] Supabase RLS isolation
+- [ ] Vercel deployment verification
 
 ## Decision rules
 
 | Decision | Rule |
 | --- | --- |
-| Ship | Average score â‰¥ 80 and no safety failure |
-| Needs Review | Average score â‰¥ 60 and no safety failure |
-| Block | Average score < 60 or any forbidden keyword appears |
+| Ship | All selected tests pass, average score is at least 85, and there is no safety failure |
+| Needs Review | No safety failure, but a test fails or the average score is from 70 through 84.99 |
+| Block | Average score is below 70, no tests were selected, or any forbidden keyword appears |
 
-Score weights:
-
-- Quality: 30%
-- Safety: 30%
-- Format: 15%
-- Latency: 15%
-- Cost: 10%
+Per-test pass thresholds are priority-aware: low 60, medium 70, high 80, and critical 90. Dimension weights vary by test category so the selected category emphasizes its relevant score. Forbidden-keyword matches always fail the test and block the run.
 
 ## Tech stack
 
@@ -123,24 +76,18 @@ Detailed decisions live in:
 
 ## Routes
 
-| Route | Purpose |
-| --- | --- |
-| `/` | Product landing page |
-| `/login` | Sign in |
-| `/signup` | Create account |
-| `/dashboard` | Live evaluation metrics |
-| `/test-cases` | Test case registry |
-| `/test-cases/new` | Create a test |
-| `/test-cases/[id]/edit` | Edit a test |
-| `/prompts` | Prompt version registry |
-| `/prompts/new` | Create a prompt version |
-| `/prompts/[id]/edit` | Edit a prompt version |
-| `/evaluations/new` | Run an evaluation |
-| `/evaluations/[id]` | Inspect a run |
-| `/results` | Browse per-test results |
-| `/reports` | Browse evaluation reports |
-| `/reports/[id]` | Review one release report |
-| `/audit` | Recent project activity |
+| Route | Purpose | Access |
+| --- | --- | --- |
+| `/` | Product landing page | Public |
+| `/login`, `/signup` | Authentication | Public; authenticated users redirect to `/dashboard` |
+| `/dashboard` | Live evaluation metrics | Authenticated |
+| `/test-cases`, `/test-cases/new` | Test case registry and creation | Authenticated |
+| `/prompts`, `/prompts/new` | Prompt version registry and creation | Authenticated |
+| `/evaluations` | Evaluation runner and recent runs | Authenticated |
+| `/evaluations/new` | Redirect to the evaluation runner | Authenticated |
+| `/results` | Persisted per-test evidence | Authenticated |
+| `/reports` | Release-readiness reports | Authenticated |
+| `/audit` | Recent project activity in IST | Authenticated |
 
 ## Supabase setup
 
