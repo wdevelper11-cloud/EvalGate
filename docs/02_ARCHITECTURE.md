@@ -291,7 +291,7 @@ Each event is mapped to a display type and message. This demonstrates traceabili
 
 1. Create one hosted Supabase project.
 2. Configure site URL and redirect URLs for local development and Vercel.
-3. Run ordered SQL files from `supabase/patches/` in the Cloud SQL Editor.
+3. Run ordered SQL files from `supabase-patches/` in the Cloud SQL Editor.
 4. Verify tables, constraints, triggers, and RLS policies in the dashboard.
 5. Create test users through the application, not by bypassing Auth.
 
