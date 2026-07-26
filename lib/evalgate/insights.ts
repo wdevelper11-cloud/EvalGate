@@ -19,19 +19,38 @@ export function formatScore(value: number): string {
   return Number(value).toFixed(2);
 }
 
-export function formatDateTime(value: string | null | undefined): string {
-  if (!value) {
-    return "Not available";
-  }
+function parseSupabaseTimestamp(value: string): Date | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "Not available";
-  }
+  const normalized = trimmed
+    .replace(
+      /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2}(?:\.\d+)?)(.*)$/,
+      "$1T$2$3",
+    )
+    .replace(/\+00$/, "Z");
+
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function timestampToMilliseconds(value: string): number {
+  return parseSupabaseTimestamp(value)?.getTime() ?? 0;
+}
+
+export function formatDateTimeIST(value: string | null | undefined): string {
+  if (!value) return "Not available";
+
+  const date = parseSupabaseTimestamp(value);
+  if (!date) return "Not available";
 
   return `${new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
     timeZone: "Asia/Kolkata",
   }).format(date)} IST`;
 }
