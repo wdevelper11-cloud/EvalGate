@@ -19,7 +19,7 @@ export default async function ReportsPage() {
   const runs = (runData ?? []) as ReportRun[];
 
   if (runError) return <><PageHeader eyebrow="Evidence" title="Release Readiness Report" description={workspace.project.name} /><ReportsError /></>;
-  if (runs.length === 0) return <><PageHeader eyebrow="Evidence" title="Release Readiness Report" description={`${workspace.project.name} · This report summarizes persisted evaluation runs, deterministic scores, and release decisions.`} /><section className="panel mt-7 p-10 text-center"><h2 className="font-semibold text-white">No evaluation reports yet</h2><p className="mt-2 text-sm text-slate-400">Reports appear after you complete a simulated evaluation.</p><Link href="/evaluations" className="button-primary mt-5">Run an evaluation</Link></section></>;
+  if (runs.length === 0) return <><PageHeader eyebrow="Evidence" title="Release Readiness Report" description={`${workspace.project.name} · This report summarizes persisted evaluation runs, deterministic scores, and release decisions.`} /><section className="panel mt-7 p-10 text-center"><h2 className="font-semibold text-white">No evaluation reports yet</h2><p className="mt-2 text-sm text-slate-400">Complete an evaluation to generate an explainable Ship, Needs Review, or Block report backed by persisted test evidence.</p><Link href="/evaluations" className="button-primary mt-5">Run an evaluation</Link></section></>;
 
   const runIds = runs.map((run) => run.id);
   const promptIds = Array.from(new Set(runs.map((run) => run.prompt_version_id)));
