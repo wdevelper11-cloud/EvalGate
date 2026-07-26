@@ -24,6 +24,9 @@ The MVP uses deterministic rule-based evaluation, so it requires no paid AI API.
 Phase 6 provides Supabase-backed test case creation, listing, and archiving. Expected and forbidden
 keywords are normalized from comma-separated form values and stored as PostgreSQL text arrays.
 
+Phase 7 provides Supabase-backed prompt version creation, listing, activation, and archiving within
+the authenticated default project. `simulated-model` is the default model context; no real AI API is called.
+
 ## Features
 
 - [ ] Supabase email/password authentication
