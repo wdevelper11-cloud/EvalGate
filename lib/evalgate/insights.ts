@@ -20,19 +20,18 @@ export function formatScore(value: number): string {
 }
 
 export function formatDateTime(value: string | null | undefined): string {
-  if (!value) return "Not available";
+  if (!value) {
+    return "Not available";
+  }
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not available";
+  if (Number.isNaN(date.getTime())) {
+    return "Not available";
+  }
 
-  return new Intl.DateTimeFormat("en-IN", {
+  return `${new Intl.DateTimeFormat("en-IN", {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone: "Asia/Kolkata",
-  }).format(date);
-}
-
-export function formatDateTimeWithZone(value: string | null | undefined): string {
-  const formatted = formatDateTime(value);
-  return formatted === "Not available" ? formatted : `${formatted} IST`;
+  }).format(date)} IST`;
 }
