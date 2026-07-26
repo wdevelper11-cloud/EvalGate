@@ -11,7 +11,9 @@ import type { TestCase } from "@/lib/evalgate/test-cases";
 import { createClient } from "@/lib/supabase/server";
 
 type PromptSelection = Pick<PromptVersion, "id" | "name" | "version_label">;
-type TestSelection = Pick<TestCase, "id" | "name" | "expected_keywords" | "forbidden_keywords" | "category" | "priority" | "status">;
+type TestSelection = Pick<TestCase, "id" | "name" | "input" | "expected_keywords" | "forbidden_keywords" | "category" | "priority" | "status">;
+
+const incompleteSimulationMarker = "simulate incomplete answer";
 
 function formText(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -24,7 +26,10 @@ function redirectWithError(message: string): never {
 
 function simulateResult(runId: string, prompt: PromptSelection, testCase: TestSelection): SimulatedEvaluationResult {
   const expectedContext = testCase.expected_keywords.map((keyword) => keyword.trim()).filter(Boolean).join(", ");
-  const response = `Simulated response for test "${testCase.name}" using prompt "${prompt.version_label}". The answer addresses${expectedContext ? `: ${expectedContext}` : " the supplied scenario"}. This MVP uses deterministic simulation and does not call a real AI provider.`;
+  const simulateIncomplete = testCase.input.toLowerCase().includes(incompleteSimulationMarker);
+  const response = simulateIncomplete
+    ? "This deterministic incomplete response intentionally omits the configured answer terms. The MVP does not call a real AI provider."
+    : `Simulated response for test "${testCase.name}" using prompt "${prompt.version_label}". The answer addresses${expectedContext ? `: ${expectedContext}` : " the supplied scenario"}. This MVP uses deterministic simulation and does not call a real AI provider.`;
   const latencyMs = 120;
   const estimatedCost = 0;
   const scores = scoreEvaluationResult({
@@ -70,7 +75,7 @@ export async function runEvaluation(formData: FormData) {
   const supabase = createClient();
   const [{ data: promptData, error: promptError }, { data: testData, error: testError }] = await Promise.all([
     supabase.from("prompt_versions").select("id, name, version_label").eq("id", promptVersionId).eq("project_id", workspace.project.id).maybeSingle(),
-    supabase.from("test_cases").select("id, name, expected_keywords, forbidden_keywords, category, priority, status").eq("project_id", workspace.project.id).eq("status", "active").in("id", testCaseIds),
+    supabase.from("test_cases").select("id, name, input, expected_keywords, forbidden_keywords, category, priority, status").eq("project_id", workspace.project.id).eq("status", "active").in("id", testCaseIds),
   ]);
 
   const prompt = promptData as PromptSelection | null;

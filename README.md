@@ -38,6 +38,9 @@ Phase 10 persists `ship`, `needs_review`, or `block` in `release_decisions`. Saf
 averages below 70 block release, partial failures or averages below 85 need review, and fully
 passing high-scoring runs can ship. Real AI provider calls remain out of scope.
 
+For deterministic review-path testing, a test input containing `simulate incomplete answer` makes
+the simulator omit configured expected keywords without intentionally adding forbidden content.
+
 ## Features
 
 - [ ] Supabase email/password authentication
