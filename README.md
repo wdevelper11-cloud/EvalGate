@@ -41,6 +41,10 @@ passing high-scoring runs can ship. Real AI provider calls remain out of scope.
 For deterministic review-path testing, a test input containing `simulate incomplete answer` makes
 the simulator omit configured expected keywords without intentionally adding forbidden content.
 
+Phase 11 adds live dashboard metrics, release-readiness reports, and an audit timeline derived from
+existing records rather than a separate audit table. Every view is scoped to the authenticated
+project through RLS, and no real AI provider calls are used.
+
 ## Features
 
 - [ ] Supabase email/password authentication
