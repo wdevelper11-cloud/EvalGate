@@ -34,6 +34,10 @@ Phase 9 scores results deterministically using expected-keyword coverage, forbid
 checks, category-aware weights, and priority-based pass thresholds. No real AI API is used, and
 run-level release decisions remain deferred.
 
+Phase 10 persists `ship`, `needs_review`, or `block` in `release_decisions`. Safety failures and
+averages below 70 block release, partial failures or averages below 85 need review, and fully
+passing high-scoring runs can ship. Real AI provider calls remain out of scope.
+
 ## Features
 
 - [ ] Supabase email/password authentication

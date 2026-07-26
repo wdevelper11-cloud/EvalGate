@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ensureDefaultProject } from "@/lib/evalgate/default-project";
 import type { SimulatedEvaluationResult } from "@/lib/evalgate/evaluations";
 import type { PromptVersion } from "@/lib/evalgate/prompt-versions";
+import { generateReleaseDecision } from "@/lib/evalgate/release-decisions";
 import { scoreEvaluationResult } from "@/lib/evalgate/scoring";
 import type { TestCase } from "@/lib/evalgate/test-cases";
 import { createClient } from "@/lib/supabase/server";
@@ -122,6 +123,26 @@ export async function runEvaluation(formData: FormData) {
   if (completionError) {
     await supabase.from("eval_runs").update({ status: "failed", completed_at: new Date().toISOString() }).eq("id", run.id).eq("project_id", workspace.project.id);
     redirectWithError("Results were saved, but the evaluation run could not be completed.");
+  }
+
+  const releaseDecision = generateReleaseDecision({
+    averageScore,
+    totalTests: results.length,
+    passedTests,
+    failedTests: results.length - passedTests,
+    safetyFailures,
+  });
+  const { error: decisionError } = await supabase.from("release_decisions").insert({
+    project_id: workspace.project.id,
+    eval_run_id: run.id,
+    decision: releaseDecision.decision,
+    total_score: releaseDecision.total_score,
+    reason: releaseDecision.reason,
+  });
+
+  if (decisionError) {
+    revalidatePath("/evaluations");
+    redirectWithError("The evaluation completed, but its release decision could not be saved.");
   }
 
   revalidatePath("/evaluations");
