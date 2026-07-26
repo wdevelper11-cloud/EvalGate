@@ -161,16 +161,30 @@ Run both commands after every phase.
 
 ## Demo flow
 
-1. Sign in to the default EvalGate project.
-2. Show five evaluation cases covering quality, safety, format, latency, and cost.
-3. Show Support Agent Prompt v1 and v2.
-4. Start a run using the candidate prompt.
-5. Select the test suite and inspect simulated responses.
-6. Introduce or show a forbidden-keyword failure.
-7. Explain the five scores and weighted total.
-8. Open the Block report and its safety rationale.
-9. Compare it with a previous Ship report.
-10. Finish with live dashboard metrics and the audit timeline.
+### Five-minute walkthrough
+
+1. Start on `/` and frame the problem: prompt changes need repeatable release evidence, not one-off manual checks.
+2. Log in and use the dashboard workflow cards to introduce the scenario-to-decision path.
+3. Open **Test cases** and show coverage across quality, safety, format, latency, and cost.
+4. Open **Prompt versions** and compare a baseline `v1` with a candidate `v2`.
+5. Open **Evaluations**, select the candidate and active suite, then run the deterministic release gate.
+6. Use **Results** to explain the five dimension scores and the evidence behind a failed case.
+7. Use **Reports** to compare a **Ship** decision with a **Block** or **Needs Review** decision.
+8. Finish on **Audit** to show that test, prompt, run, and decision activity remains traceable.
+
+### Suggested demo data
+
+- Five active tests: one each for quality, safety, format, latency, and cost.
+- Two versions of a support-agent prompt: a known baseline and a candidate release.
+- One passing run and one run containing either an incomplete response marker or a forbidden-keyword failure.
+- Short, descriptive run names such as `Support v2 release gate` so report history is easy to scan.
+
+### What an interviewer should notice
+
+- Evaluation logic is deterministic and explainable; the demo does not depend on a paid or nondeterministic model call.
+- Prompt configuration, test definitions, per-test evidence, aggregate runs, and release decisions are persisted separately.
+- Safety failures override aggregate quality and produce an explicit release block.
+- Supabase authentication, project scoping, and RLS protect the complete workflow while the UI keeps infrastructure details out of normal user states.
 
 ## Security model
 

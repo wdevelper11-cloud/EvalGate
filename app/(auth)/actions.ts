@@ -18,6 +18,12 @@ function authRedirect(path: string, key: "error" | "message", value: string): ne
   redirect(`${path}?${key}=${encodeURIComponent(value)}`);
 }
 
+function safeAuthError(context: "login" | "signup") {
+  return context === "login"
+    ? "We could not sign you in. Check your email and password, then try again."
+    : "We could not create your account. Check your details or try a different email address.";
+}
+
 export async function login(formData: FormData) {
   const credentials = readCredentials(formData);
   if (!credentials) authRedirect("/login", "error", "Email and password are required.");
@@ -25,7 +31,7 @@ export async function login(formData: FormData) {
   const supabase = createClient();
   const { error } = await supabase.auth.signInWithPassword(credentials);
 
-  if (error) authRedirect("/login", "error", error.message);
+  if (error) authRedirect("/login", "error", safeAuthError("login"));
   redirect("/dashboard");
 }
 
@@ -39,7 +45,7 @@ export async function signup(formData: FormData) {
   const supabase = createClient();
   const { data, error } = await supabase.auth.signUp(credentials);
 
-  if (error) authRedirect("/signup", "error", error.message);
+  if (error) authRedirect("/signup", "error", safeAuthError("signup"));
   if (!data.session) {
     authRedirect("/login", "message", "Check your email to confirm your account, then log in.");
   }
