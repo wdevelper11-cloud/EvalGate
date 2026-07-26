@@ -123,7 +123,7 @@ Detailed decisions live in:
 EvalGate uses a hosted Supabase project only.
 
 1. Create a project at Supabase.
-2. Open **Project Settings â†’ API** and copy the project URL and publishable key.
+2. Open **Project Settings → API** and copy the project URL and anon key.
 3. Open **SQL Editor**.
 4. Run the ordered SQL files from `supabase-patches/`, beginning with:
 
@@ -155,18 +155,11 @@ Required values:
 
 ```dotenv
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
-```
-
-If the Supabase project still uses the legacy key naming convention, the implementation may instead document:
-
-```dotenv
 NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
 ```
 
-Use one convention consistently in code and deployment.
-
 Do not expose a service-role key. EvalGate does not require one for normal application behavior.
+Workspace routes require a valid Supabase Auth session; unauthenticated requests redirect to `/login`.
 
 ## Development commands
 

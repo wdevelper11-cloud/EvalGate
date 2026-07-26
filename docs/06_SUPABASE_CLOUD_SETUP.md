@@ -8,3 +8,6 @@
 6. Keep `.env.local` private and expose no service-role credentials to the browser.
 
 EvalGate uses Supabase Cloud only. Do not install the Supabase CLI or run a local Supabase stack.
+
+Application routes under the EvalGate workspace require a valid Supabase session. Configure the
+site URL and redirect URLs for each deployed environment in the Supabase Auth URL settings.
