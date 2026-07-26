@@ -1,12 +1,15 @@
 import { AppShell } from "@/components/app-shell";
+import { WorkspaceSetupError } from "@/components/workspace-setup-error";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { ensureDefaultProject } from "@/lib/evalgate/default-project";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const workspace = await ensureDefaultProject();
 
-  if (!user) redirect("/login");
+  if (!workspace.ok && workspace.reason === "unauthenticated") redirect("/login");
+  if (!workspace.ok) {
+    return <AppShell userEmail={workspace.email}><WorkspaceSetupError /></AppShell>;
+  }
 
-  return <AppShell userEmail={user.email}>{children}</AppShell>;
+  return <AppShell userEmail={workspace.email} projectName={workspace.project.name}>{children}</AppShell>;
 }

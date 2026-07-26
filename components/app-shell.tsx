@@ -6,7 +6,7 @@ const navigation = [
   ["Evaluations", "/evaluations"], ["Results", "/results"], ["Reports", "/reports"], ["Audit", "/audit"],
 ] as const;
 
-export function AppShell({ children, userEmail }: { children: React.ReactNode; userEmail?: string }) {
+export function AppShell({ children, userEmail, projectName }: { children: React.ReactNode; userEmail?: string; projectName?: string }) {
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
       <aside className="border-b border-slate-800 bg-slate-950 lg:fixed lg:inset-y-0 lg:w-60 lg:border-b-0 lg:border-r">
@@ -17,7 +17,7 @@ export function AppShell({ children, userEmail }: { children: React.ReactNode; u
         <nav aria-label="Application navigation" className="flex gap-1 overflow-x-auto px-3 pb-3 lg:block lg:space-y-1 lg:pb-0">
           {navigation.map(([label, href]) => <Link key={href} href={href} className="block shrink-0 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-slate-900 hover:text-white">{label}</Link>)}
         </nav>
-        <div className="hidden px-5 lg:absolute lg:bottom-6 lg:block"><p className="text-xs leading-5 text-slate-600">Authenticated workspace<br />Supabase Cloud session</p></div>
+        <div className="hidden px-5 lg:absolute lg:bottom-6 lg:block"><p className="max-w-48 truncate text-xs font-medium text-slate-400">{projectName ?? "Workspace unavailable"}</p><p className="mt-1 text-xs text-slate-600">Supabase Cloud workspace</p></div>
       </aside>
       <div className="lg:col-start-2">
         <header className="flex min-h-16 items-center justify-between gap-4 border-b border-slate-800 bg-slate-950/60 px-5 py-3 lg:px-8"><p className="text-xs font-medium uppercase tracking-widest text-slate-500">Release readiness workspace</p><div className="flex min-w-0 items-center gap-3"><span className="hidden max-w-52 truncate text-xs text-slate-500 sm:block">{userEmail}</span><LogoutButton /></div></header>
