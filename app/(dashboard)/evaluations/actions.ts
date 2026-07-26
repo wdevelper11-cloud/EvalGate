@@ -5,11 +5,12 @@ import { redirect } from "next/navigation";
 import { ensureDefaultProject } from "@/lib/evalgate/default-project";
 import type { SimulatedEvaluationResult } from "@/lib/evalgate/evaluations";
 import type { PromptVersion } from "@/lib/evalgate/prompt-versions";
+import { scoreEvaluationResult } from "@/lib/evalgate/scoring";
 import type { TestCase } from "@/lib/evalgate/test-cases";
 import { createClient } from "@/lib/supabase/server";
 
 type PromptSelection = Pick<PromptVersion, "id" | "name" | "version_label">;
-type TestSelection = Pick<TestCase, "id" | "name" | "expected_keywords" | "forbidden_keywords" | "status">;
+type TestSelection = Pick<TestCase, "id" | "name" | "expected_keywords" | "forbidden_keywords" | "category" | "priority" | "status">;
 
 function formText(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -21,29 +22,35 @@ function redirectWithError(message: string): never {
 }
 
 function simulateResult(runId: string, prompt: PromptSelection, testCase: TestSelection): SimulatedEvaluationResult {
-  const response = `Simulated response for "${testCase.name}" using prompt "${prompt.version_label}". This MVP does not call a real AI provider.`;
-  const normalizedResponse = response.toLocaleLowerCase();
-  const forbiddenFound = testCase.forbidden_keywords.some((keyword) =>
-    keyword.trim() !== "" && normalizedResponse.includes(keyword.trim().toLocaleLowerCase()),
-  );
-  const totalScore = forbiddenFound ? 60 : 100;
-  const passed = totalScore >= 70 && !forbiddenFound;
+  const expectedContext = testCase.expected_keywords.map((keyword) => keyword.trim()).filter(Boolean).join(", ");
+  const response = `Simulated response for test "${testCase.name}" using prompt "${prompt.version_label}". The answer addresses${expectedContext ? `: ${expectedContext}` : " the supplied scenario"}. This MVP uses deterministic simulation and does not call a real AI provider.`;
+  const latencyMs = 120;
+  const estimatedCost = 0;
+  const scores = scoreEvaluationResult({
+    responseOutput: response,
+    expectedKeywords: testCase.expected_keywords,
+    forbiddenKeywords: testCase.forbidden_keywords,
+    category: testCase.category,
+    priority: testCase.priority,
+    latencyMs,
+    estimatedCost,
+  });
 
   return {
     eval_run_id: runId,
     test_case_id: testCase.id,
     response_output: response,
-    quality_score: testCase.expected_keywords.length > 0 ? 80 : 100,
-    safety_score: forbiddenFound ? 0 : 100,
-    format_score: 90,
-    latency_score: 100,
-    cost_score: 100,
-    total_score: totalScore,
-    latency_ms: 120,
-    estimated_cost: 0,
-    passed,
-    failure_reason: forbiddenFound ? "Simulated response contained a configured forbidden keyword." : null,
-    forbidden_found: forbiddenFound,
+    quality_score: scores.quality_score,
+    safety_score: scores.safety_score,
+    format_score: scores.format_score,
+    latency_score: scores.latency_score,
+    cost_score: scores.cost_score,
+    total_score: scores.total_score,
+    latency_ms: latencyMs,
+    estimated_cost: estimatedCost,
+    passed: scores.passed,
+    failure_reason: scores.failure_reason,
+    forbidden_found: scores.forbidden_found,
   };
 }
 
@@ -62,7 +69,7 @@ export async function runEvaluation(formData: FormData) {
   const supabase = createClient();
   const [{ data: promptData, error: promptError }, { data: testData, error: testError }] = await Promise.all([
     supabase.from("prompt_versions").select("id, name, version_label").eq("id", promptVersionId).eq("project_id", workspace.project.id).maybeSingle(),
-    supabase.from("test_cases").select("id, name, expected_keywords, forbidden_keywords, status").eq("project_id", workspace.project.id).eq("status", "active").in("id", testCaseIds),
+    supabase.from("test_cases").select("id, name, expected_keywords, forbidden_keywords, category, priority, status").eq("project_id", workspace.project.id).eq("status", "active").in("id", testCaseIds),
   ]);
 
   const prompt = promptData as PromptSelection | null;

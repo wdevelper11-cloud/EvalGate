@@ -30,6 +30,10 @@ the authenticated default project. `simulated-model` is the default model contex
 Phase 8 persists deterministic simulated evaluations as Supabase `eval_runs` and `eval_results`
 records. Real provider calls, final scoring, and release decisions remain intentionally deferred.
 
+Phase 9 scores results deterministically using expected-keyword coverage, forbidden-keyword safety
+checks, category-aware weights, and priority-based pass thresholds. No real AI API is used, and
+run-level release decisions remain deferred.
+
 ## Features
 
 - [ ] Supabase email/password authentication
