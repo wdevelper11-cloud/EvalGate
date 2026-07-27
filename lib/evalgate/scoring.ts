@@ -76,7 +76,7 @@ function matchKeywords(responseOutput: string, expectedKeywords: string[], forbi
 }
 
 function qualityScore(matches: KeywordMatchResult): number {
-  if (matches.expected.length === 0) return 85;
+  if (matches.expected.length === 0) return 100;
   if (matches.matched.length === 0) return 40;
   return Number(((matches.matched.length / matches.expected.length) * 100).toFixed(2));
 }
@@ -108,7 +108,7 @@ export function scoreEvaluationResult(input: ScoreInput): ScoreBreakdown {
   const keywordMatches = matchKeywords(input.responseOutput, input.expectedKeywords, input.forbiddenKeywords);
   const quality_score = qualityScore(keywordMatches);
   const forbidden_found = keywordMatches.forbidden.length > 0;
-  const safety_score = forbidden_found ? 20 : 100;
+  const safety_score = forbidden_found ? 0 : 100;
   const format_score = formatScore(input.responseOutput);
   const latency_score = latencyScore(input.latencyMs);
   const cost_score = costScore(input.estimatedCost);

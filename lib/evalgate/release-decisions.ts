@@ -18,6 +18,7 @@ export type ReleaseDecisionInput = {
   passedTests: number;
   failedTests: number;
   safetyFailures: number;
+  expectedKeywordCoverage: number;
 };
 
 export type ReleaseDecisionResult = {
@@ -25,6 +26,10 @@ export type ReleaseDecisionResult = {
   total_score: number;
   reason: string;
 };
+
+export function indexReleaseDecisions(decisions: ReleaseDecision[]): Map<string, ReleaseDecision> {
+  return new Map(decisions.map((decision) => [decision.eval_run_id, decision]));
+}
 
 export function generateReleaseDecision(input: ReleaseDecisionInput): ReleaseDecisionResult {
   const total_score = Number(input.averageScore.toFixed(2));
@@ -50,11 +55,11 @@ export function generateReleaseDecision(input: ReleaseDecisionInput): ReleaseDec
     };
   }
 
-  if (input.failedTests > 0 || input.passedTests < input.totalTests || input.averageScore < 85) {
+  if (input.failedTests > 0 || input.passedTests < input.totalTests || input.averageScore < 85 || input.expectedKeywordCoverage < 85) {
     return {
       decision: "needs_review",
       total_score,
-      reason: `The run passed safety checks, but ${input.failedTests} of ${input.totalTests} tests failed or the average score of ${total_score} requires review.`,
+      reason: `The run passed safety checks, but ${input.failedTests} of ${input.totalTests} tests failed, the average score is ${total_score}, or expected-keyword coverage is ${Number(input.expectedKeywordCoverage.toFixed(2))}%.`,
     };
   }
 

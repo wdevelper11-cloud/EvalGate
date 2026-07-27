@@ -10,10 +10,8 @@ import { scoreEvaluationResult } from "@/lib/evalgate/scoring";
 import type { TestCase } from "@/lib/evalgate/test-cases";
 import { createClient } from "@/lib/supabase/server";
 
-type PromptSelection = Pick<PromptVersion, "id" | "name" | "version_label">;
+type PromptSelection = Pick<PromptVersion, "id" | "name" | "version_label" | "prompt_text">;
 type TestSelection = Pick<TestCase, "id" | "name" | "input" | "expected_keywords" | "forbidden_keywords" | "category" | "priority" | "status">;
-
-const incompleteSimulationMarker = "simulate incomplete answer";
 
 function formText(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -24,16 +22,12 @@ function redirectWithError(message: string): never {
   redirect(`/evaluations?error=${encodeURIComponent(message)}`);
 }
 
-function simulateResult(runId: string, prompt: PromptSelection, testCase: TestSelection): SimulatedEvaluationResult {
-  const expectedContext = testCase.expected_keywords.map((keyword) => keyword.trim()).filter(Boolean).join(", ");
-  const simulateIncomplete = testCase.input.toLowerCase().includes(incompleteSimulationMarker);
-  const response = simulateIncomplete
-    ? "This deterministic incomplete response intentionally omits the configured answer terms. The MVP does not call a real AI provider."
-    : `Simulated response for test "${testCase.name}" using prompt "${prompt.version_label}". The answer addresses${expectedContext ? `: ${expectedContext}` : " the supplied scenario"}. This MVP uses deterministic simulation and does not call a real AI provider.`;
+function simulateResult(runId: string, prompt: PromptSelection, testCase: TestSelection) {
+  const evaluatedText = prompt.prompt_text;
   const latencyMs = 120;
   const estimatedCost = 0;
   const scores = scoreEvaluationResult({
-    responseOutput: response,
+    responseOutput: evaluatedText,
     expectedKeywords: testCase.expected_keywords,
     forbiddenKeywords: testCase.forbidden_keywords,
     category: testCase.category,
@@ -42,10 +36,10 @@ function simulateResult(runId: string, prompt: PromptSelection, testCase: TestSe
     estimatedCost,
   });
 
-  return {
+  const result: SimulatedEvaluationResult = {
     eval_run_id: runId,
     test_case_id: testCase.id,
-    response_output: response,
+    response_output: evaluatedText,
     quality_score: scores.quality_score,
     safety_score: scores.safety_score,
     format_score: scores.format_score,
@@ -58,6 +52,7 @@ function simulateResult(runId: string, prompt: PromptSelection, testCase: TestSe
     failure_reason: scores.failure_reason,
     forbidden_found: scores.forbidden_found,
   };
+  return { result, keywordMatches: scores.keyword_matches };
 }
 
 export async function runEvaluation(formData: FormData) {
@@ -74,7 +69,7 @@ export async function runEvaluation(formData: FormData) {
 
   const supabase = createClient();
   const [{ data: promptData, error: promptError }, { data: testData, error: testError }] = await Promise.all([
-    supabase.from("prompt_versions").select("id, name, version_label").eq("id", promptVersionId).eq("project_id", workspace.project.id).maybeSingle(),
+    supabase.from("prompt_versions").select("id, name, version_label, prompt_text").eq("id", promptVersionId).eq("project_id", workspace.project.id).maybeSingle(),
     supabase.from("test_cases").select("id, name, input, expected_keywords, forbidden_keywords, category, priority, status").eq("project_id", workspace.project.id).eq("status", "active").in("id", testCaseIds),
   ]);
 
@@ -100,7 +95,8 @@ export async function runEvaluation(formData: FormData) {
 
   if (runError || !runData) redirectWithError("Could not start the evaluation run. Please try again.");
   const run = runData as { id: string };
-  const results = testCases.map((testCase) => simulateResult(run.id, prompt, testCase));
+  const evaluatedCases = testCases.map((testCase) => simulateResult(run.id, prompt, testCase));
+  const results = evaluatedCases.map(({ result }) => result);
 
   const { error: resultsError } = await supabase.from("eval_results").insert(results);
   if (resultsError) {
@@ -111,6 +107,9 @@ export async function runEvaluation(formData: FormData) {
   const passedTests = results.filter((result) => result.passed).length;
   const safetyFailures = results.filter((result) => result.forbidden_found).length;
   const averageScore = Number((results.reduce((sum, result) => sum + result.total_score, 0) / results.length).toFixed(2));
+  const expectedKeywordCount = evaluatedCases.reduce((sum, item) => sum + item.keywordMatches.expected.length, 0);
+  const expectedKeywordMatches = evaluatedCases.reduce((sum, item) => sum + item.keywordMatches.matched.length, 0);
+  const expectedKeywordCoverage = expectedKeywordCount === 0 ? 100 : (expectedKeywordMatches / expectedKeywordCount) * 100;
   const { error: completionError } = await supabase
     .from("eval_runs")
     .update({
@@ -136,6 +135,7 @@ export async function runEvaluation(formData: FormData) {
     passedTests,
     failedTests: results.length - passedTests,
     safetyFailures,
+    expectedKeywordCoverage,
   });
   const { error: decisionError } = await supabase.from("release_decisions").insert({
     project_id: workspace.project.id,
