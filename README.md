@@ -5,9 +5,7 @@
 EvalGate addresses a practical release problem for teams building LLM and AI-agent applications: prompt changes can silently regress correctness, safety, policy behavior, or output format. The MVP provides a Supabase-backed authenticated workflow for collecting repeatable evidence before a candidate is released—without claiming semantic model evaluation or real provider execution.
 
 ## Live Demo
-
-<!-- Production URL not confirmed in repository metadata. Add the verified Vercel link here when supplied. -->
-
+https://eval-gate.vercel.app/ 
 The Vercel production URL must be supplied manually; no confirmed public deployment URL is stored in this repository.
 
 ## Product Screenshots
