@@ -228,6 +228,7 @@ The Node test suite covers Ship, Needs Review, and Block behavior; case-insensit
 - Implemented Supabase Auth, SSR session handling, server-derived project scoping, and RLS-backed cross-user isolation for an authenticated full-stack workflow.
 - Added regression tests for all three decision paths, keyword normalization, empty input handling, and persisted-decision rendering behavior.
 - Prepared a Vercel-ready Applied AI portfolio MVP with dashboards, reports, and an audit timeline while keeping the evaluation boundary honest and provider-independent.
+- Added optional server-side HTTP execution and strict JSON/CSV recorded-trace ingestion while preserving deterministic mode and source-labeled evidence.
 
 ## Interview Talking Points
 
@@ -241,24 +242,32 @@ The Node test suite covers Ship, Needs Review, and Block behavior; case-insensit
 | **Hardest decision** | Determinism improves repeatability and inspectability but deliberately gives up semantic understanding and real model behavior. |
 | **Key debugging lesson** | The original evaluator generated synthetic responses containing all expected keywords instead of evaluating the selected `prompt_text`. The fix loaded and scored the actual prompt content, persisted real keyword evidence, and enforced safety and coverage gates. |
 | **Major tradeoffs** | Synchronous substring scoring and one default project keep the MVP clear, but omit queues, semantic judges, collaboration roles, and provider telemetry. |
-| **Why no AI API** | The project demonstrates evaluation architecture and release governance without nondeterminism, credentials, latency, or inference cost. |
-| **What comes next** | Provider adapters, semantic evaluators, baselines, human review, configurable thresholds, CI gates, and richer organization controls. |
+| **Why a provider-neutral endpoint** | A narrow HTTPS contract can evaluate buyer-approved workflows without coupling release evidence to one model vendor or exposing credentials to the browser. |
+| **What comes next** | Semantic evaluators, baselines, human review, configurable thresholds, and richer organization controls. |
 | **How it could scale** | Add immutable configuration snapshots, queued/idempotent run workers, batched provider adapters, versioned datasets, observability, and organization/role boundaries. |
+
+## External execution and recorded traces
+
+Apply [`supabase-patches/002_external_execution_evidence.sql`](supabase-patches/002_external_execution_evidence.sql) to a backed-up non-production Supabase project before using the new modes. Configure the optional HTTP endpoint with server-only environment values from [`.env.example`](.env.example). The endpoint must accept a JSON POST containing `prompt`, `input`, and `metadata`, then return a non-empty `output` plus optional request, latency, cost, token, and trace fields.
+
+Recorded traces accept strict JSON or CSV. Every row must map to one selected test-case ID or unique name, reproduce the stored input exactly, and include a non-empty output. Missing, duplicate, extra, mismatched, malformed, or negative-valued evidence fails the run. Imported traces are always labeled **Recorded trace**, never live.
+
+The HTTP adapter executes cases sequentially, requires HTTPS outside localhost development, sends idempotency metadata, enforces a timeout, and does not automatically retry POST requests. Only buyer-approved, appropriately redacted traces should be persisted. Follow [`docs/07_EXTERNAL_EVIDENCE_ACCEPTANCE.md`](docs/07_EXTERNAL_EVIDENCE_ACCEPTANCE.md) before deployment.
 
 ## Limitations
 
-- Evaluation uses deterministic substring matching, not semantic model evaluation, embeddings, or an LLM judge.
-- No OpenAI, Anthropic, LangChain, LangGraph, self-hosted model, or other real provider is executed.
+- Scoring uses deterministic substring matching, not semantic model evaluation, embeddings, or an LLM judge.
+- External execution uses one provider-neutral buyer endpoint; there are no direct OpenAI, Anthropic, LangChain, LangGraph, or self-hosted-provider SDK integrations.
 - Natural-language negation is not interpreted; literal forbidden text still matches.
-- Latency and estimated cost are fixed MVP values, not provider telemetry or billing data.
+- Deterministic latency/cost are fixed MVP values. External latency/cost are endpoint-supplied evidence and are not reconciled billing data.
 - Runs execute synchronously; there is no queue, retry system, or transactional workflow spanning every write.
-- There is no CI/CD release integration, billing, enterprise deployment guarantee, or formal compliance claim.
+- CI verifies type-checking, tests, lint, and build; there is no automatic production release decision, billing, enterprise deployment guarantee, or formal compliance claim.
 - Collaboration is limited to an owner-scoped default project; organization membership and reviewer roles are not implemented.
 - The audit view is derived from business-record timestamps rather than a dedicated immutable event log.
 
 ## Future Improvements
 
-- OpenAI, Anthropic, and self-hosted provider adapters with real latency and usage evidence
+- Optional direct vendor adapters where a buyer requires them, with reconciled latency and usage evidence
 - Semantic metrics or calibrated model-graded evaluators alongside deterministic rules
 - Versioned datasets, exact configuration snapshots, and baseline regression comparison
 - Configurable thresholds, human-review workflows, approvals, and release overrides
