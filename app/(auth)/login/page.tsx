@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { AuthSubmitButton } from "@/components/auth-submit-button";
 import { login } from "../actions";
 
@@ -15,7 +14,7 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
         <label className="label block">Password<input className="field" name="password" type="password" autoComplete="current-password" placeholder="••••••••" required /></label>
         <AuthSubmitButton idleLabel="Log in" pendingLabel="Logging in…" />
       </form>
-      <p className="mt-6 text-center text-sm text-slate-400">New to EvalGate? <Link className="font-medium text-teal-400 hover:text-teal-300" href="/signup">Create an account</Link></p>
+      <p className="mt-6 text-center text-xs text-slate-500">Access is by invitation only. Sign-up is closed.</p>
     </section>
   );
 }

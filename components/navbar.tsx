@@ -10,7 +10,6 @@ export function Navbar() {
         </Link>
         <nav aria-label="Public navigation" className="flex items-center gap-2">
           <Link href="/login" className="px-3 py-2 text-sm font-medium text-slate-300 hover:text-white">Log in</Link>
-          <Link href="/signup" className="button-primary">Start evaluating</Link>
         </nav>
       </div>
     </header>

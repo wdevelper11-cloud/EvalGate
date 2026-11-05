@@ -8,6 +8,8 @@ import type { PromptVersion } from "@/lib/evalgate/prompt-versions";
 import { generateReleaseDecision } from "@/lib/evalgate/release-decisions";
 import { scoreEvaluationResult } from "@/lib/evalgate/scoring";
 import type { TestCase } from "@/lib/evalgate/test-cases";
+import { isOperator } from "@/lib/evalgate/operator";
+import { MAX_CASES_PER_RUN } from "@/lib/evalgate/run-plan";
 import { createClient } from "@/lib/supabase/server";
 
 type PromptSelection = Pick<PromptVersion, "id" | "name" | "version_label" | "prompt_text">;
@@ -39,6 +41,7 @@ function simulateResult(runId: string, prompt: PromptSelection, testCase: TestSe
   const result: SimulatedEvaluationResult = {
     eval_run_id: runId,
     test_case_id: testCase.id,
+    execution_source: "simulated",
     response_output: evaluatedText,
     quality_score: scores.quality_score,
     safety_score: scores.safety_score,
@@ -86,6 +89,8 @@ export async function runEvaluation(formData: FormData) {
     .insert({
       project_id: workspace.project.id,
       prompt_version_id: prompt.id,
+      execution_mode: "simulated",
+      planned_test_case_ids: testCases.map((testCase) => testCase.id),
       name: runName,
       status: "running",
       total_tests: testCases.length,
@@ -152,4 +157,48 @@ export async function runEvaluation(formData: FormData) {
 
   revalidatePath("/evaluations");
   redirect("/evaluations");
+}
+
+/** Creates a real HTTP-endpoint run and opens its run page, which sends one case at a time. */
+export async function startTargetRun(formData: FormData) {
+  const targetId = formText(formData, "target_id");
+  const testCaseIds = Array.from(new Set(formData.getAll("test_case_ids").filter(
+    (value): value is string => typeof value === "string" && value.trim() !== "",
+  )));
+
+  if (!(await isOperator())) redirectWithError("Only operator accounts can run real agent tests.");
+  if (!targetId) redirectWithError("Select a target.");
+  if (testCaseIds.length === 0) redirectWithError("Select at least one active test case.");
+  if (testCaseIds.length > MAX_CASES_PER_RUN) redirectWithError(`A run can include at most ${MAX_CASES_PER_RUN} test cases.`);
+
+  const workspace = await ensureDefaultProject();
+  if (!workspace.ok) redirectWithError("Workspace setup is unavailable. Please try again.");
+
+  const supabase = createClient();
+  const [{ data: target, error: targetError }, { data: testData, error: testError }] = await Promise.all([
+    supabase.from("targets").select("id").eq("id", targetId).eq("project_id", workspace.project.id).maybeSingle(),
+    supabase.from("test_cases").select("id, created_at").eq("project_id", workspace.project.id).eq("status", "active").in("id", testCaseIds).order("created_at", { ascending: true }),
+  ]);
+  if (targetError || !target) redirectWithError("The selected target is unavailable.");
+  const testCases = (testData ?? []) as Array<{ id: string }>;
+  if (testError || testCases.length !== testCaseIds.length) redirectWithError("One or more selected test cases are unavailable or inactive.");
+
+  const { data: runData, error: runError } = await supabase
+    .from("eval_runs")
+    .insert({
+      project_id: workspace.project.id,
+      prompt_version_id: null,
+      execution_mode: "http_endpoint",
+      target_id: targetId,
+      planned_test_case_ids: testCases.map((testCase) => testCase.id),
+      name: formText(formData, "name") || null,
+      status: "running",
+      total_tests: testCases.length,
+    })
+    .select("id")
+    .single();
+  if (runError || !runData) redirectWithError("Could not create the run. Confirm database patch 002 is applied.");
+
+  revalidatePath("/evaluations");
+  redirect(`/evaluations/${(runData as { id: string }).id}`);
 }

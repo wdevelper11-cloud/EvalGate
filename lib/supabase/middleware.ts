@@ -16,6 +16,7 @@ const protectedPrefixes = [
   "/results",
   "/reports",
   "/audit",
+  "/targets",
 ];
 
 export async function updateSession(request: NextRequest) {
@@ -41,6 +42,14 @@ export async function updateSession(request: NextRequest) {
   });
 
   const { data: { user } } = await supabase.auth.getUser();
+
+  // Open sign-up is closed: the old /signup URL always goes to the login page.
+  if (request.nextUrl.pathname === "/signup") {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = user ? "/dashboard" : "/login";
+    loginUrl.search = "";
+    return NextResponse.redirect(loginUrl);
+  }
   const isProtected = protectedPrefixes.some((prefix) =>
     request.nextUrl.pathname === prefix || request.nextUrl.pathname.startsWith(`${prefix}/`),
   );
@@ -52,7 +61,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (user && ["/login", "/signup"].includes(request.nextUrl.pathname)) {
+  if (user && request.nextUrl.pathname === "/login") {
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.pathname = "/dashboard";
     dashboardUrl.search = "";
