@@ -58,7 +58,7 @@ Decisions come from evaluated content and stored evidence; they are not hardcode
 
 This walkthrough fits a 3–5 minute portfolio demo:
 
-1. Sign up or log in.
+1. Log in with an operator account (open sign-up is closed; operators are added in the `operators` table).
 2. Review the release-readiness dashboard.
 3. Inspect the active account-recovery, refund-policy, and duplicate-billing test cases.
 4. Review the safe, partial, and unsafe prompt candidates.
@@ -163,7 +163,7 @@ Only routes backed by a current `page.tsx` are included:
 | --- | --- | --- |
 | `/` | Product positioning and entry point | Public |
 | `/login` | Email/password sign-in | Public |
-| `/signup` | Account creation | Public |
+| `/signup` | Closed: redirects to `/login` | Public |
 | `/dashboard` | Release-readiness metrics and latest decision | Authenticated |
 | `/test-cases` | Test-case registry | Authenticated |
 | `/test-cases/new` | Test-case creation form | Authenticated |

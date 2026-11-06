@@ -124,9 +124,32 @@ export function capText(text: string, maxBytes = RAW_RESPONSE_CAP_BYTES): string
   return `${buffer.subarray(0, maxBytes).toString("utf8")}\n…[truncated: ${buffer.length} bytes total]`;
 }
 
-function redact(text: string, secret: string | undefined): string {
+function hexPattern(code: number, width: number): string {
+  return code.toString(16).padStart(width, "0").split("").map((digit) => (/[a-f]/.test(digit) ? `[${digit}${digit.toUpperCase()}]` : digit)).join("");
+}
+
+/**
+ * Matches the key however an endpoint might echo it back: each character may
+ * appear literally, JSON-escaped (\\uXXXX, any hex case, or \\/ for "/"), or
+ * URL-encoded (%XX), in any mix.
+ */
+export function secretPattern(secret: string): RegExp {
+  const parts = Array.from(secret).map((char) => {
+    const code = char.codePointAt(0)!;
+    const options = [char.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")];
+    if (code <= 0xffff) options.push(`\\\\u${hexPattern(code, 4)}`);
+    if (code < 0x80) options.push(`%${hexPattern(code, 2)}`);
+    if (char === "/") options.push("\\\\/");
+    if (char === "\\") options.push("\\\\\\\\");
+    if (char === "\"") options.push('\\\\"');
+    return `(?:${options.join("|")})`;
+  });
+  return new RegExp(parts.join(""), "g");
+}
+
+export function redact(text: string, secret: string | undefined): string {
   if (!secret || secret.length < 4) return text;
-  return text.split(secret).join("[REDACTED]");
+  return text.replace(secretPattern(secret), "[REDACTED]");
 }
 
 /** Parses Retry-After (seconds or HTTP date) into ms; falls back to DEFAULT_RETRY_AFTER_MS. */

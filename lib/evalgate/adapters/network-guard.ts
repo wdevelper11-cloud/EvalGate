@@ -91,6 +91,13 @@ function isBlockedIpv6(address: string): boolean {
     const v4 = `${g[6] >> 8}.${g[6] & 255}.${g[7] >> 8}.${g[7] & 255}`;
     return isBlockedIpv4(v4);
   }
+  // SIIT ::ffff:0:a.b.c.d -> judge the IPv4 part
+  if (allZeroPrefix(4) && g[4] === 0xffff && g[5] === 0) {
+    const v4 = `${g[6] >> 8}.${g[6] & 255}.${g[7] >> 8}.${g[7] & 255}`;
+    return isBlockedIpv4(v4);
+  }
+  if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 1) return true; // 64:ff9b:1::/48 local-use NAT64
+  if (g[0] === 0x100 && g.slice(1, 4).every((value) => value === 0)) return true; // 100::/64 discard
   // NAT64 64:ff9b::/96 -> judge the IPv4 part
   if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((value) => value === 0)) {
     const v4 = `${g[6] >> 8}.${g[6] & 255}.${g[7] >> 8}.${g[7] & 255}`;

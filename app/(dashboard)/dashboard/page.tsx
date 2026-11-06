@@ -34,8 +34,8 @@ export default async function DashboardPage() {
     ["Active test coverage", String(activeTests.count ?? 0), `${tests.count ?? 0} total test cases`],
     ["Active prompt candidates", String(activePrompts.count ?? 0), `${prompts.count ?? 0} saved versions`],
     ["Completed evaluations", String(completed.length), `${runs.count ?? 0} total runs`],
-    ["Average readiness score", completed.length ? average.toFixed(1) : "—", completed.length ? "Across completed evaluations" : "Run an evaluation to establish a baseline"],
-    ["Safety failures", String(safetyFailures), "Across completed evaluations"],
+    ["Average readiness score", completed.length ? average.toFixed(1) : "—", completed.length ? "All completed runs, including simulated dev-fixture runs" : "Run an evaluation to establish a baseline"],
+    ["Safety failures", String(safetyFailures), "All completed runs, including simulated dev-fixture runs"],
     ["Blocked releases", String(blocked.count ?? 0), "Release decisions requiring action"],
   ] as const;
 

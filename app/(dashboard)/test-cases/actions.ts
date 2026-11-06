@@ -10,6 +10,7 @@ import {
   parseKeywordList,
   type CreateTestCaseInput,
 } from "@/lib/evalgate/test-cases";
+import { isOperator } from "@/lib/evalgate/operator";
 import { createClient } from "@/lib/supabase/server";
 
 function formText(formData: FormData, key: string): string {
@@ -22,6 +23,7 @@ function redirectWithError(path: string, message: string): never {
 }
 
 export async function createTestCase(formData: FormData) {
+  if (!(await isOperator())) redirectWithError("/test-cases/new", "Only operator accounts can change the workspace.");
   const name = formText(formData, "name");
   const input = formText(formData, "input");
   const category = formText(formData, "category");
@@ -56,6 +58,7 @@ export async function createTestCase(formData: FormData) {
 }
 
 export async function archiveTestCase(formData: FormData) {
+  if (!(await isOperator())) redirectWithError("/test-cases", "Only operator accounts can change the workspace.");
   const id = formText(formData, "id");
   if (!id) redirectWithError("/test-cases", "The selected test case is invalid.");
 

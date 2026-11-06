@@ -219,3 +219,30 @@ test("[11] worst case for one case is 15 s + 20 s + 15 s = 50 s of adapter time"
   assert.equal(h.elapsed(), 50000);
   assert.ok(h.elapsed() <= 50000);
 });
+
+// ---- Hostile-review follow-ups ---------------------------------------------------
+
+test("[3] key echoed JSON-escaped, \\u-escaped (any case, mixed), \\/-escaped or URL-encoded is redacted", async () => {
+  const { redact } = await import("../lib/evalgate/adapters/http-endpoint.ts");
+  const key = "sk-ab+cd/ef==";
+  for (const echo of [
+    key,
+    JSON.stringify({ e: key }),
+    "sk-ab\\u002bcd/ef==",
+    "sk-ab\\u002Bcd\\/ef\\u003d\\u003d",
+    "sk-ab+cd\\/ef==",
+    encodeURIComponent(key),
+    "sk-ab%2bcd%2fef%3d%3d",
+  ]) {
+    const out = redact(`before ${echo} after`, key);
+    assert.equal(out, `before ${echo.startsWith("{") ? '{"e":"[REDACTED]"}' : "[REDACTED]"} after`, echo);
+  }
+});
+
+test("[2] SIIT, local-use NAT64 and discard-prefix IPv6 addresses are refused", async () => {
+  const { isBlockedAddress } = await import("../lib/evalgate/adapters/network-guard.ts");
+  for (const address of ["::ffff:0:7f00:1", "::ffff:0:a00:1", "64:ff9b:1::a00:1", "100::1"]) {
+    assert.equal(isBlockedAddress(address), true, address);
+  }
+  assert.equal(isBlockedAddress("::ffff:0:808:808"), false);
+});

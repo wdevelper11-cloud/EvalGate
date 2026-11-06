@@ -96,7 +96,10 @@ function sendOnce(request: TransportRequest, options: HttpsTransportOptions, max
         }
         resolve({ status: res.statusCode ?? 0, headers, bodyText: Buffer.concat(chunks).toString("utf8") });
       });
-      res.on("error", () => fail(new AdapterError("network_error", "The connection failed while reading the response.")));
+      res.on("error", () => {
+        clearTimeout(overall);
+        fail(new AdapterError("network_error", "The connection failed while reading the response."));
+      });
     });
 
     // Hard deadline for the whole exchange, not just socket inactivity.

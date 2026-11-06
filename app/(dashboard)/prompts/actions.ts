@@ -8,6 +8,7 @@ import {
   type CreatePromptVersionInput,
   type PromptVersionStatus,
 } from "@/lib/evalgate/prompt-versions";
+import { isOperator } from "@/lib/evalgate/operator";
 import { createClient } from "@/lib/supabase/server";
 
 function formText(formData: FormData, key: string): string {
@@ -20,6 +21,7 @@ function redirectWithError(path: string, message: string): never {
 }
 
 export async function createPromptVersion(formData: FormData) {
+  if (!(await isOperator())) redirectWithError("/prompts/new", "Only operator accounts can change the workspace.");
   const name = formText(formData, "name");
   const promptText = formText(formData, "prompt_text");
   const modelName = formText(formData, "model_name");
@@ -54,6 +56,7 @@ export async function createPromptVersion(formData: FormData) {
 }
 
 async function setPromptVersionStatus(formData: FormData, status: PromptVersionStatus) {
+  if (!(await isOperator())) redirectWithError("/prompts", "Only operator accounts can change the workspace.");
   const id = formText(formData, "id");
   if (!id) redirectWithError("/prompts", "The selected prompt version is invalid.");
 

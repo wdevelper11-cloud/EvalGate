@@ -64,8 +64,10 @@ export async function runEvaluation(formData: FormData) {
     (value): value is string => typeof value === "string" && value.trim() !== "",
   )));
 
+  if (!(await isOperator())) redirectWithError("Only operator accounts can run evaluations.");
   if (!promptVersionId) redirectWithError("Select a prompt version.");
   if (testCaseIds.length === 0) redirectWithError("Select at least one active test case.");
+  if (testCaseIds.length > MAX_CASES_PER_RUN) redirectWithError(`A run can include at most ${MAX_CASES_PER_RUN} test cases.`);
 
   const workspace = await ensureDefaultProject();
   if (!workspace.ok) redirectWithError("Workspace setup is unavailable. Please try again.");
