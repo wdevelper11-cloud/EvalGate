@@ -60,6 +60,15 @@ export async function testTargetConnection(_previous: ConnectionCheck, formData:
   if (error || !data) return { targetId, ok: false, summary: "Target not found.", detail: null, checkedAt };
   const target = data as Target;
 
+  // Same per-target pacing as runs: no "Hello" inside the target's delay window.
+  const { data: waitData, error: claimError } = await createClient().rpc("claim_target_send_slot", { p_target_id: target.id });
+  if (claimError || typeof waitData !== "number" || waitData < 0) {
+    return { targetId, ok: false, summary: "Could not reserve a send slot for this target. Confirm database patch 003 is applied.", detail: null, checkedAt };
+  }
+  if (waitData > 0) {
+    return { targetId, ok: false, summary: `Too soon: this target was contacted less than ${target.min_delay_ms / 1000} s ago. Try again in ${Math.ceil(waitData / 1000)} s. Nothing was sent.`, detail: null, checkedAt };
+  }
+
   const record = await runHttpCase(targetToConfig(target), "Hello", {
     transport: httpsTransport,
     env: process.env,

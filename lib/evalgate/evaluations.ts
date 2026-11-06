@@ -47,7 +47,7 @@ export type EvalResult = {
   forbidden_found: boolean;
   created_at: string;
   execution_source: ExecutionMode;
-  result_status: "completed" | "error";
+  result_status: "pending" | "completed" | "error";
   target_id: string | null;
   adapter: string | null;
   request_url: string | null;

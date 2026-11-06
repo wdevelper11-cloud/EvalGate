@@ -52,6 +52,8 @@ export const RAW_RESPONSE_CAP_BYTES = 64_000;
 export const MAX_RETRY_AFTER_MS = 20_000;
 export const DEFAULT_RETRY_AFTER_MS = 10_000;
 export const USER_AGENT = "PreshockAI-Tester/1.0";
+/** Keys shorter than this are refused: redacting them would mangle ordinary text. */
+export const MIN_KEY_LENGTH = 8;
 
 const forbiddenHeaderNames = new Set([
   "host", "content-length", "content-type", "accept", "connection", "transfer-encoding",
@@ -148,8 +150,18 @@ export function secretPattern(secret: string): RegExp {
 }
 
 export function redact(text: string, secret: string | undefined): string {
-  if (!secret || secret.length < 4) return text;
-  return text.replace(secretPattern(secret), "[REDACTED]");
+  if (!secret) return text;
+  let result = text.replace(secretPattern(secret), "[REDACTED]");
+  // Also redact partial echoes: any piece of the key at least half its length
+  // (and at least MIN_KEY_LENGTH characters), longest pieces first.
+  const minPiece = Math.max(MIN_KEY_LENGTH, Math.ceil(secret.length / 2));
+  for (let length = secret.length - 1; length >= minPiece; length -= 1) {
+    for (let start = 0; start + length <= secret.length; start += 1) {
+      const piece = secret.slice(start, start + length);
+      if (result.includes(piece)) result = result.split(piece).join("[REDACTED]");
+    }
+  }
+  return result;
 }
 
 /** Parses Retry-After (seconds or HTTP date) into ms; falls back to DEFAULT_RETRY_AFTER_MS. */
@@ -210,6 +222,9 @@ export async function runHttpCase(config: HttpTargetConfig, input: string, deps:
     }
     if (config.keyEnvVar && !key) {
       throw new AdapterError("missing_key", `Server environment variable ${config.keyEnvVar} is not set.`);
+    }
+    if (key && key.length < MIN_KEY_LENGTH) {
+      throw new AdapterError("invalid_configuration", `The key in ${config.keyEnvVar} is shorter than ${MIN_KEY_LENGTH} characters, so it could not be reliably kept out of stored evidence. Nothing was sent.`);
     }
     const path = responsePathFor(config);
     if (!isValidResponsePath(path)) throw new AdapterError("invalid_configuration", "Response path is not valid.");

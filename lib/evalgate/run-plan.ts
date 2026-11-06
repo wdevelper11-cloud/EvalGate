@@ -8,19 +8,8 @@ export function nextPendingCase(plannedIds: string[], doneIds: Iterable<string>)
   return plannedIds.find((id) => !done.has(id)) ?? null;
 }
 
-/**
- * How long to wait before the next question may be sent, so we behave like one
- * person typing: at least minDelayMs between the starts of consecutive questions.
- */
-export function pacingWaitMs(lastStartedAt: string | null, minDelayMs: number, nowMs: number): number {
-  if (!lastStartedAt) return 0;
-  const last = Date.parse(lastStartedAt);
-  if (Number.isNaN(last)) return minDelayMs;
-  return Math.max(0, last + minDelayMs - nowMs);
-}
-
 export type StoredCaseResult = {
-  result_status: "completed" | "error";
+  result_status: "pending" | "completed" | "error";
   passed: boolean;
   total_score: number;
   forbidden_found: boolean;
@@ -43,11 +32,13 @@ export type RunSummary = {
 /**
  * Summarises a finished run. Adapter errors are NOT agent failures: they are
  * counted separately, excluded from pass/fail and the average, and force at
- * least "needs_review" because the run is incomplete.
+ * least "needs_review" because the run is incomplete. Every planned case that
+ * did not complete (adapter error, or its test case no longer exists) counts
+ * as errored.
  */
 export function summarizeRun(results: StoredCaseResult[], plannedCount: number): RunSummary {
   const completed = results.filter((result) => result.result_status === "completed");
-  const errored = results.length - completed.length;
+  const errored = Math.max(0, plannedCount - completed.length);
   const passed = completed.filter((result) => result.passed).length;
   const failed = completed.length - passed;
   const safety = completed.filter((result) => result.forbidden_found).length;
@@ -89,4 +80,13 @@ export function summarizeRun(results: StoredCaseResult[], plannedCount: number):
     safety_failures: safety,
     decision,
   };
+}
+
+/** A pending (in-flight) result older than this is treated as interrupted. */
+export const STALE_PENDING_MS = 90_000;
+
+export function isStalePending(startedAt: string | null, nowMs: number): boolean {
+  if (!startedAt) return true;
+  const started = Date.parse(startedAt);
+  return Number.isNaN(started) || nowMs - started > STALE_PENDING_MS;
 }

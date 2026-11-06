@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { MAX_CASES_PER_RUN, nextPendingCase, pacingWaitMs, summarizeRun, type StoredCaseResult } from "../lib/evalgate/run-plan.ts";
+import { isStalePending, MAX_CASES_PER_RUN, nextPendingCase, STALE_PENDING_MS, summarizeRun, type StoredCaseResult } from "../lib/evalgate/run-plan.ts";
 import { parseTargetForm, type TargetFormValues } from "../lib/evalgate/targets.ts";
 
 const baseForm: TargetFormValues = {
@@ -66,12 +66,13 @@ test("run plan resumes at the first case without a result", () => {
   assert.equal(MAX_CASES_PER_RUN, 50);
 });
 
-test("pacing waits until min delay has passed since the last question started", () => {
-  const last = "2026-11-05T10:00:00.000Z";
-  const base = Date.parse(last);
-  assert.equal(pacingWaitMs(null, 5000, base), 0);
-  assert.equal(pacingWaitMs(last, 5000, base + 1200), 3800);
-  assert.equal(pacingWaitMs(last, 5000, base + 9000), 0);
+test("an in-flight question is stale only after 90 s (then recorded as interrupted, never re-sent)", () => {
+  const started = "2026-11-05T10:00:00.000Z";
+  const base = Date.parse(started);
+  assert.equal(isStalePending(started, base + 1000), false);
+  assert.equal(isStalePending(started, base + STALE_PENDING_MS), false);
+  assert.equal(isStalePending(started, base + STALE_PENDING_MS + 1), true);
+  assert.equal(isStalePending(null, base), true);
 });
 
 const completed = (passed: boolean, score: number, extra: Partial<StoredCaseResult> = {}): StoredCaseResult => ({
@@ -100,4 +101,11 @@ test("a run where every case errored is marked failed with no verdict", () => {
   const summary = summarizeRun([errored, errored], 2);
   assert.equal(summary.status, "failed");
   assert.equal(summary.decision, null);
+});
+
+test("a planned case whose test case was deleted counts as errored, so the run still finishes", () => {
+  const summary = summarizeRun([completed(true, 95), completed(true, 95)], 3);
+  assert.equal(summary.status, "completed");
+  assert.equal(summary.errored_tests, 1);
+  assert.equal(summary.decision?.decision, "needs_review");
 });

@@ -6,7 +6,7 @@ import { AdapterError } from "../lib/evalgate/adapters/errors.ts";
 import { MAX_RETRY_AFTER_MS, runHttpCase, type AdapterDeps, type HttpTargetConfig } from "../lib/evalgate/adapters/http-endpoint.ts";
 import { resolvePublicAddress, validateTargetUrl } from "../lib/evalgate/adapters/network-guard.ts";
 import type { TransportRequest, TransportResponse } from "../lib/evalgate/adapters/transport.ts";
-import { MAX_CASES_PER_RUN, pacingWaitMs } from "../lib/evalgate/run-plan.ts";
+import { MAX_CASES_PER_RUN } from "../lib/evalgate/run-plan.ts";
 import { parseTargetForm } from "../lib/evalgate/targets.ts";
 
 const KEY = "sk-live-VERY-SECRET-abcdef0123456789";
@@ -143,17 +143,8 @@ test("[4] every non-TARGET_KEY_ name is refused before any request, in the form 
 
 // ---- 5. Pacing ----------------------------------------------------------------
 
-test("[5] pacing never returns 0 within the delay window, for any delay the form allows", () => {
-  const start = "2026-11-05T10:00:00.000Z";
-  for (const delay of [2000, 5000, 60000]) {
-    for (const after of [0, 1, delay / 2, delay - 1]) {
-      assert.ok(pacingWaitMs(start, delay, Date.parse(start) + after) > 0, `${delay}/${after}`);
-    }
-    assert.equal(pacingWaitMs(start, delay, Date.parse(start) + delay), 0);
-  }
-  // clock skew: a "last started" in the future still forces a wait
-  assert.ok(pacingWaitMs("2026-11-05T10:00:10.000Z", 5000, Date.parse(start)) >= 5000);
-});
+// [5] Pacing is now enforced by claim_target_send_slot() in the database (patch 003);
+// see the SQL evidence in the verification report. The form still refuses < 2 s.
 
 test("[5] the form refuses delays below 2 s (default 5 s)", () => {
   const base = { name: "t", endpoint_url: "https://api.example.com/x", request_format: "openai_chat", model: "", request_template: "", response_path: "", auth_header_name: "", auth_scheme: "", key_env_var: "", timeout_seconds: "" };
@@ -245,4 +236,26 @@ test("[2] SIIT, local-use NAT64 and discard-prefix IPv6 addresses are refused", 
     assert.equal(isBlockedAddress(address), true, address);
   }
   assert.equal(isBlockedAddress("::ffff:0:808:808"), false);
+});
+
+test("[3] partial echoes of the key (half its length or more) are redacted", async () => {
+  const { redact } = await import("../lib/evalgate/adapters/http-endpoint.ts");
+  const key = "sk-live-0123456789abcdefghij"; // 28 chars -> pieces of 14+ are redacted
+  assert.equal(redact(`key starts ${key.slice(0, 20)}...`, key).includes(key.slice(0, 14)), false);
+  assert.equal(redact(`...ends ${key.slice(-15)}`, key).includes(key.slice(-14)), false);
+  // short, common fragments are left alone so ordinary text is not mangled
+  assert.equal(redact("the sk-live prefix is documented", key), "the sk-live prefix is documented");
+});
+
+test("[3] keys shorter than 8 characters are refused before sending", async () => {
+  const sent: unknown[] = [];
+  const record = await runHttpCase(target, "hi", {
+    env: { TARGET_KEY_GATE: "abc123" },
+    now: () => 0,
+    sleep: async () => {},
+    transport: async (request) => { sent.push(request); return { status: 200, headers: {}, bodyText: "{}" }; },
+  });
+  assert.equal(record.errorCode, "invalid_configuration");
+  assert.equal(sent.length, 0);
+  assert.equal(JSON.stringify(record).includes("abc123"), false);
 });

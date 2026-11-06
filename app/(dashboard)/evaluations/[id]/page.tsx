@@ -64,7 +64,7 @@ export default async function RunPage({ params }: { params: { id: string } }) {
     <PageHeader eyebrow={executionModeLabels[run.execution_mode]} title={run.name || `Run ${run.id.slice(0, 8)}`} description={target ? `Target: ${target.name} · ${target.endpoint_url}` : "Simulated run: no real agent was called."} />
     <section className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-400">
       <span className="capitalize">Status: <strong className="text-slate-200">{run.status}</strong></span>
-      <span>{results.size} of {caseIds.length} sent</span>
+      <span>{Array.from(results.values()).filter((result) => result.result_status !== "pending").length} of {caseIds.length} done</span>
       {run.status !== "running" && <span>{run.passed_tests} passed · {run.failed_tests} failed · {run.errored_tests} errored</span>}
       {decision && <ReleaseDecisionBadge decision={decision.decision} />}
       <Link href="/evaluations" className="text-teal-400 hover:text-teal-300">All runs →</Link>
@@ -76,6 +76,7 @@ export default async function RunPage({ params }: { params: { id: string } }) {
         const testCase = cases.get(caseId);
         const result = results.get(caseId);
         const badge = !result ? ["Not sent", "border-slate-700 text-slate-400"]
+          : result.result_status === "pending" ? ["Sending…", "border-sky-400/30 bg-sky-400/10 text-sky-200"]
           : result.result_status === "error" ? ["Error (not an agent failure)", "border-amber-400/30 bg-amber-400/10 text-amber-200"]
             : result.passed ? ["Passed", "border-teal-400/30 bg-teal-400/10 text-teal-300"] : ["Failed", "border-red-400/30 bg-red-400/10 text-red-300"];
         return <article key={caseId} className="panel p-6">
@@ -85,7 +86,7 @@ export default async function RunPage({ params }: { params: { id: string } }) {
           </div>
           <p className="mt-4 text-xs uppercase tracking-wider text-slate-600">Question sent</p>
           <p className="mt-1 whitespace-pre-wrap text-sm text-slate-300">{testCase?.input}</p>
-          {result && <>
+          {result && result.result_status !== "pending" && <>
             <p className="mt-4 text-xs uppercase tracking-wider text-slate-600">{result.result_status === "error" ? "Error" : "Reply received"}</p>
             {result.result_status === "error"
               ? <p className="mt-1 text-sm text-amber-200">{result.error_code}: {result.error_message}</p>
