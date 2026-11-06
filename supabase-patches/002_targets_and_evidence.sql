@@ -17,6 +17,7 @@ create table if not exists public.operators (
 
 alter table public.operators enable row level security;
 
+drop policy if exists "operators_select_own" on public.operators;
 create policy "operators_select_own" on public.operators
 for select to authenticated using (user_id = (select auth.uid()));
 
@@ -82,16 +83,19 @@ create index if not exists targets_project_id_idx on public.targets (project_id)
 
 alter table public.targets enable row level security;
 
+drop policy if exists "targets_select_operator" on public.targets;
 create policy "targets_select_operator" on public.targets
 for select to authenticated using (
   (select public.is_operator())
   and exists (select 1 from public.projects where projects.id = targets.project_id and projects.owner_id = (select auth.uid()))
 );
+drop policy if exists "targets_insert_operator" on public.targets;
 create policy "targets_insert_operator" on public.targets
 for insert to authenticated with check (
   (select public.is_operator())
   and exists (select 1 from public.projects where projects.id = targets.project_id and projects.owner_id = (select auth.uid()))
 );
+drop policy if exists "targets_update_operator" on public.targets;
 create policy "targets_update_operator" on public.targets
 for update to authenticated
 using (
@@ -102,6 +106,7 @@ with check (
   (select public.is_operator())
   and exists (select 1 from public.projects where projects.id = targets.project_id and projects.owner_id = (select auth.uid()))
 );
+drop policy if exists "targets_delete_operator" on public.targets;
 create policy "targets_delete_operator" on public.targets
 for delete to authenticated using (
   (select public.is_operator())

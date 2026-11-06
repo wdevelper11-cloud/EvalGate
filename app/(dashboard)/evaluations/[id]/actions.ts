@@ -6,7 +6,7 @@ import { httpsTransport } from "@/lib/evalgate/adapters/transport";
 import { ensureDefaultProject } from "@/lib/evalgate/default-project";
 import { evalRunFields, type EvalRun } from "@/lib/evalgate/evaluations";
 import { isOperator } from "@/lib/evalgate/operator";
-import { nextPendingCase, pacingWaitMs, summarizeRun, type StoredCaseResult } from "@/lib/evalgate/run-plan";
+import { MAX_CASES_PER_RUN, nextPendingCase, pacingWaitMs, summarizeRun, type StoredCaseResult } from "@/lib/evalgate/run-plan";
 import { scoreEvaluationResult } from "@/lib/evalgate/scoring";
 import { targetFields, targetToConfig, type Target } from "@/lib/evalgate/targets";
 import type { TestCase } from "@/lib/evalgate/test-cases";
@@ -95,6 +95,10 @@ export async function runNextCase(runId: string): Promise<RunStep> {
   const run = runData as EvalRun;
   if (run.execution_mode !== "http_endpoint" || !run.target_id) return { kind: "error", message: "This is not an HTTP endpoint run." };
   if (run.status !== "running") return { kind: "finished", status: run.status };
+  // Re-check the cap here too: a run row written outside startTargetRun must not exceed it.
+  if (run.planned_test_case_ids.length > MAX_CASES_PER_RUN) {
+    return { kind: "error", message: `This run plans ${run.planned_test_case_ids.length} cases; the limit is ${MAX_CASES_PER_RUN}. Nothing was sent.` };
+  }
 
   const [{ data: targetData, error: targetError }, { data: doneData, error: doneError }] = await Promise.all([
     supabase.from("targets").select(targetFields).eq("id", run.target_id).maybeSingle(),
